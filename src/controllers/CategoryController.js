@@ -1,0 +1,90 @@
+
+const CategoryService = require('../services/CategoryService');
+const categoryService = new CategoryService();
+
+class CategoryController {
+
+    // CADASTRAR USUÁRIO
+    async criar(req, res) {
+        try {
+            const data = req.body;
+
+            const category = await categoryService.criar(data);
+
+            return res.status(201).json(category);
+
+        } catch (error) {
+            return res.status(400).json({
+                error: error.message
+            });
+        }
+    };
+
+    // LISTAR TODOS OS USUÁRIOS
+    async listar(req, res) {
+        try {
+            const categorys = await categoryService.listar();
+
+            return res.status(200).json(categorys);
+
+        } catch (error) {
+            return res.status(500).json({
+                error: error.message
+            });
+        }
+    };
+
+    // BUSCAR USUÁRIO POR ID
+    async listarPorId(req, res) {
+        try {
+            const { id } = req.params;
+
+            const category = await categoryService.listarPorId(id);
+
+            return res.status(200).json(category);
+
+        } catch (error) {
+            return res.status(404).json({
+                error: error.message
+            });
+        }
+    };
+
+    // ATUALIZAR USUÁRIO
+    async atualizar(req, res) {
+        try {
+            const { id } = req.params;
+            const data = req.body;
+
+            const category = await categoryService.atualizar(id, data);
+
+            return res.status(200).json(category);
+
+        } catch (error) {
+            return res.status(400).json({
+                error: error.message
+            });
+        }
+    };
+
+    // EXCLUIR USUÁRIO
+    async excluir(req, res) {
+        try {
+            const { id } = req.params;
+
+            await categoryService.excluir(id);
+
+            return res.status(200).json({
+                message: 'Usuário excluído com sucesso!'
+            });
+
+        } catch (error) {
+            return res.status(404).json({
+                error: error.message
+            });
+        }
+    };
+    
+};
+
+module.exports = CategoryController;

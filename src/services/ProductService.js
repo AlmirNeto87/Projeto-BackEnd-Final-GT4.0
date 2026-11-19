@@ -510,7 +510,7 @@ class ProductService {
 
 
     // DELETAR PRODUTO
-    async excluir(id) {
+    async deletar(id) {
 
         const product = await ProductModel.findByPk(id);
 

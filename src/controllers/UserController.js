@@ -69,11 +69,11 @@ class UserController {
     };
 
     // EXCLUIR USUÁRIO
-    async excluir(req, res) {
+    async deletar(req, res) {
         try {
             const { id } = req.params;
 
-            await userService.excluir(id);
+            await userService.deletar(id);
 
             return res.status(200).json({
                 message: 'Usuário excluído com sucesso!'

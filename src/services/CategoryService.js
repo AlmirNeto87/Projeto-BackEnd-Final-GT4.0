@@ -16,7 +16,8 @@ class CategoryService {
 
         const category = await CategoryModel.create({
             name: data.name,
-            description: data.description
+            slug: data.slug,
+            use_in_menu: data.use_in_menu
         });
 
         return category;
@@ -53,7 +54,8 @@ class CategoryService {
 
         const dadosPermitidos = {
             name: data.name,
-            description: data.description
+            slug: data.slug,
+            use_in_menu: data.use_in_menu
         };
 
         Object.keys(dadosPermitidos).forEach(key => {

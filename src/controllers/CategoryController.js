@@ -7,6 +7,7 @@ class CategoryController {
     // CADASTRAR USUÁRIO
     async criar(req, res) {
         try {
+            console.log("teste criar categoria");
             const data = req.body;
 
             const category = await categoryService.criar(data);
@@ -68,11 +69,11 @@ class CategoryController {
     };
 
     // EXCLUIR USUÁRIO
-    async excluir(req, res) {
+    async deletar(req, res) {
         try {
             const { id } = req.params;
 
-            await categoryService.excluir(id);
+            await categoryService.deletar(id);
 
             return res.status(200).json({
                 message: 'Usuário excluído com sucesso!'

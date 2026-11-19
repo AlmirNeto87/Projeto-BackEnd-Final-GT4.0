@@ -68,11 +68,11 @@ class ProductController {
     };
 
     // EXCLUIR USUÁRIO
-    async excluir(req, res) {
+    async deletar(req, res) {
         try {
             const { id } = req.params;
 
-            await productService.excluir(id);
+            await productService.deletar(id);
 
             return res.status(200).json({
                 message: 'Usuário excluído com sucesso!'

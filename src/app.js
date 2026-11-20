@@ -1,4 +1,5 @@
-
+const swaggerUi = require('swagger-ui-express');
+const swaggerSpec = require('./config/swagger');
 const express = require('express');
 
 const PrivateRoutes = require('./routes/PrivateRoutes');
@@ -9,9 +10,10 @@ class App {
     constructor() {
 
         this.server = express();
-
+        this.server.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
         this.middlewares();
         this.routes();
+        
         this.notFound();
     }
 

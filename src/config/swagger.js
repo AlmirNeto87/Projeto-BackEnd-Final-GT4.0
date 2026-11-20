@@ -8,13 +8,13 @@ const options = {
         info: {
             title: 'Projeto Final BackEnd',
             version: '1.0.0',
-            description: 'Documentação do Projeto Final de Backend'
+            description: 'Documentação do Projeto Final de Backend do Curso de FullStack Online da Geracao Tech 4.0'
         },
 
         servers: [
             {
                 url: 'http://localhost:3000',
-                description: 'Servidor de Projeto BackEnd FullStack Online Geracao Tech 4.0'
+                description: 'Servidor de Projeto Final BackEnd'
             }
         ],
 

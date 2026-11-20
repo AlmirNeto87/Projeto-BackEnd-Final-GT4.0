@@ -6,15 +6,15 @@ const options = {
         openapi: '3.0.0',
 
         info: {
-            title: 'Minha API',
+            title: 'Projeto Final BackEnd',
             version: '1.0.0',
-            description: 'Documentação da API Backend'
+            description: 'Documentação do Projeto Final de Backend'
         },
 
         servers: [
             {
                 url: 'http://localhost:3000',
-                description: 'Servidor de ervidor de Projeto BackEnd FullStack Online Geracao Tech 4.0'
+                description: 'Servidor de Projeto BackEnd FullStack Online Geracao Tech 4.0'
             }
         ],
 
@@ -30,7 +30,7 @@ const options = {
     },
 
     apis: [
-        path.resolve(__dirname, '../routes/**/*.js')
+        path.resolve(__dirname, '../routes/**/*.js').replace(/\\/g, '/')
     ]
 };
 

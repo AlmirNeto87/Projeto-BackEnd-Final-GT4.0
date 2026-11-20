@@ -22,7 +22,7 @@ const authController = new AuthController();
  *   get:
  *     summary: Busca um usuário pelo ID
  *     tags:
- *       - Usuários
+ *       - Users
  *     parameters:
  *       - in: path
  *         name: id
@@ -44,7 +44,7 @@ PublicRoutes.get('/v1/user/:id', userController.listarPorId);
  *   get:
  *     summary: Lista todos os usuários
  *     tags:
- *       - Usuários
+ *       - Users
  *     responses:
  *       200:
  *         description: Lista de usuários retornada com sucesso

@@ -3,7 +3,7 @@ const ProductModel = require('../models/ProductModel');
 const CategoryModel = require('../models/CategoryModel');
 const ProductOptionModel = require('../models/ProductOptionModel');
 const ProductImageModel = require('../models/ProductImageModel');
-
+const { Op } = require('sequelize');
 const database = require('../config/database');
 
 class ProductService {
@@ -129,16 +129,113 @@ class ProductService {
 
 
     // LISTAR PRODUTOS
-    async listar() {
+    
+    // LISTAR PRODUTOS COM FILTROS, PAGINAÇÃO E SELEÇÃO DE CAMPOS
+    
+    // LISTAR PRODUTOS COM FILTROS, PAGINAÇÃO E SELEÇÃO DE CAMPOS
+    async listar(query = {}) {
 
-        return await ProductModel.findAll({
-            include: [
+        const {
+            limit = '12',
+            page = '1',
+            fields,
+            match,
+            category_ids,
+            'price-range': priceRange
+        } = query;
+
+        // VALIDAR PAGINAÇÃO
+        const parsedLimit = Number(limit);
+
+        if (!Number.isInteger(parsedLimit) || parsedLimit === 0 || parsedLimit < -1) {
+            throw new Error('O parâmetro limit deve ser um inteiro positivo ou -1!');
+        }
+
+        // Quando limit=-1, page é ignorado
+        const parsedPage = Number(page);
+
+        if (parsedLimit !== -1 && (!Number.isInteger(parsedPage) || parsedPage < 1)) {
+            throw new Error('O parâmetro page deve ser um inteiro maior que zero!');
+        }
+
+        const options = {
+            where: {},
+            include: [],
+            order: [['id', 'ASC']]
+        };
+
+        // SELEÇÃO DE CAMPOS
+        const camposPermitidos = [
+            'id',
+            'enabled',
+            'name',
+            'slug',
+            'use_in_menu',
+            'stock',
+            'description',
+            'price',
+            'price_with_discount',
+            'created_at',
+            'updated_at'
+        ];
+
+        const relacionamentos = ['categories', 'images', 'options'];
+
+        let camposSolicitados = [];
+
+        if (fields !== undefined) {
+
+            camposSolicitados = String(fields)
+                .split(',')
+                .map(campo => campo.trim())
+                .filter(Boolean);
+
+            const camposInvalidos = camposSolicitados.filter(
+                campo => !camposPermitidos.includes(campo) &&
+                    !relacionamentos.includes(campo)
+            );
+
+            if (camposInvalidos.length > 0) {
+                throw new Error(`Campos inválidos: ${camposInvalidos.join(', ')}`);
+            }
+
+            const atributos = camposSolicitados.filter(
+                campo => camposPermitidos.includes(campo)
+            );
+
+            // Mantém o ID disponível para os relacionamentos
+            options.attributes = [...new Set(['id', ...atributos])];
+
+            if (camposSolicitados.includes('categories')) {
+                options.include.push({
+                    model: CategoryModel,
+                    as: 'categories',
+                    through: { attributes: [] }
+                });
+            }
+
+            if (camposSolicitados.includes('images')) {
+                options.include.push({
+                    model: ProductImageModel,
+                    as: 'images'
+                });
+            }
+
+            if (camposSolicitados.includes('options')) {
+                options.include.push({
+                    model: ProductOptionModel,
+                    as: 'options'
+                });
+            }
+
+        } else {
+
+            // Comportamento padrão: retornar todos os campos e relacionamentos
+            options.include.push(
                 {
                     model: CategoryModel,
                     as: 'categories',
-                    through: {
-                        attributes: []
-                    }
+                    through: { attributes: [] }
                 },
                 {
                     model: ProductOptionModel,
@@ -148,9 +245,223 @@ class ProductService {
                     model: ProductImageModel,
                     as: 'images'
                 }
-            ]
+            );
+
+        }
+
+        // BUSCA POR NOME OU DESCRIÇÃO
+        if (match) {
+
+            options.where[Op.or] = [
+                { name: { [Op.like]: `%${match}%` } },
+                { description: { [Op.like]: `%${match}%` } }
+            ];
+
+        }
+
+        // FILTRO POR CATEGORIAS
+        if (category_ids !== undefined) {
+
+            const categoryIds = String(category_ids)
+                .split(',')
+                .map(id => Number(id.trim()));
+
+            if (
+                categoryIds.length === 0 ||
+                !categoryIds.every(id => Number.isInteger(id) && id > 0)
+            ) {
+                throw new Error('IDs de categorias inválidos!');
+            }
+
+            options.include = options.include.filter(
+                include => include.as !== 'categories'
+            );
+
+            options.include.push({
+                model: CategoryModel,
+                as: 'categories',
+                attributes: camposSolicitados.includes('categories') ? undefined : [],
+                through: { attributes: [] },
+                where: {
+                    id: { [Op.in]: categoryIds }
+                },
+                required: true
+            });
+
+        }
+
+        // FILTRO POR FAIXA DE PREÇO
+        if (priceRange !== undefined) {
+
+            const valores = String(priceRange).split('-').map(Number);
+
+            if (
+                valores.length !== 2 ||
+                !valores.every(valor => Number.isFinite(valor)) ||
+                valores[0] < 0 ||
+                valores[1] < valores[0]
+            ) {
+                throw new Error('Faixa de preço inválida! Utilize o formato 100-200.');
+            }
+
+            options.where.price = {
+                [Op.between]: valores
+            };
+
+        }
+
+        // FILTRO POR OPÇÕES
+        const optionFilters = {};
+
+        // Compatibilidade com query parser que entrega option como objeto
+        if (
+            query.option &&
+            typeof query.option === 'object' &&
+            !Array.isArray(query.option)
+        ) {
+            Object.assign(optionFilters, query.option);
+        }
+
+        // Compatibilidade com query parser que entrega option[45] como chave literal
+        Object.entries(query).forEach(([key, value]) => {
+
+            const matchOption = key.match(/^option\[(\d+)\]$/);
+
+            if (matchOption) {
+                optionFilters[matchOption[1]] = value;
+            }
+
         });
+
+        const optionIds = Object.keys(optionFilters);
+
+        if (optionIds.length > 0) {
+
+            const produtosEncontradosPorOpcao = [];
+
+            // Consultar todas as opções informadas
+            const optionRows = await ProductOptionModel.findAll({
+                where: {
+                    id: {
+                        [Op.in]: optionIds.map(Number)
+                    }
+                },
+                attributes: ['id', 'product_id', 'values']
+            });
+
+            // Verificar cada opção individualmente
+            for (const optionId of optionIds) {
+
+                const id = Number(optionId);
+
+                if (!Number.isInteger(id) || id <= 0) {
+                    throw new Error('ID de opção inválido!');
+                }
+
+                const valoresSolicitados = String(optionFilters[optionId])
+                    .split(',')
+                    .map(value => value.trim())
+                    .filter(Boolean);
+
+                if (valoresSolicitados.length === 0) {
+                    throw new Error(`Informe valores válidos para a opção ${optionId}!`);
+                }
+
+                const optionRow = optionRows.find(
+                    option => Number(option.id) === id
+                );
+
+                if (!optionRow) {
+                    produtosEncontradosPorOpcao.push(new Set());
+                    continue;
+                }
+
+                // Normalizar valores armazenados em CSV ou JSON
+                let valoresArmazenados = [];
+
+                if (Array.isArray(optionRow.values)) {
+
+                    valoresArmazenados = optionRow.values;
+
+                } else {
+
+                    const valorOriginal = String(optionRow.values);
+
+                    try {
+
+                        const valorJSON = JSON.parse(valorOriginal);
+
+                        if (Array.isArray(valorJSON)) {
+                            valoresArmazenados = valorJSON;
+                        } else if (typeof valorJSON === 'string') {
+                            valoresArmazenados = [valorJSON];
+                        } else {
+                            valoresArmazenados = valorOriginal.split(',');
+                        }
+
+                    } catch (error) {
+
+                        valoresArmazenados = valorOriginal.split(',');
+
+                    }
+
+                }
+
+                valoresArmazenados = valoresArmazenados.map(
+                    value => String(value).trim()
+                );
+
+                // Comparação exata dos valores
+                const encontrouValor = valoresSolicitados.some(
+                    valor => valoresArmazenados.includes(valor)
+                );
+
+                if (encontrouValor) {
+
+                    produtosEncontradosPorOpcao.push(
+                        new Set([Number(optionRow.product_id)])
+                    );
+
+                } else {
+
+                    produtosEncontradosPorOpcao.push(new Set());
+
+                }
+
+            }
+
+            // O produto precisa corresponder a TODAS as opções solicitadas
+            let produtosValidos = produtosEncontradosPorOpcao[0];
+
+            for (let i = 1; i < produtosEncontradosPorOpcao.length; i++) {
+
+                produtosValidos = new Set(
+                    [...produtosValidos].filter(
+                        id => produtosEncontradosPorOpcao[i].has(id)
+                    )
+                );
+
+            }
+
+            options.where.id = {
+                [Op.in]: [...produtosValidos]
+            };
+
+        }
+
+        // PAGINAÇÃO
+        if (parsedLimit !== -1) {
+
+            options.limit = parsedLimit;
+            options.offset = (parsedPage - 1) * parsedLimit;
+
+        }
+
+        return await ProductModel.findAll(options);
+
     };
+
+
 
 
     // BUSCAR PRODUTO POR ID

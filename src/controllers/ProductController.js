@@ -21,18 +21,21 @@ class ProductController {
     };
 
     // LISTAR TODOS OS USUÁRIOS
+    
+    // LISTAR PRODUTOS
     async listar(req, res) {
         try {
-            const users = await productService.listar();
+            const products = await productService.listar(req.query);
 
-            return res.status(200).json(users);
+            return res.status(200).json(products);
 
         } catch (error) {
-            return res.status(500).json({
+            return res.status(400).json({
                 error: error.message
             });
         }
     };
+
 
     // BUSCAR USUÁRIO POR ID
     async listarPorId(req, res) {

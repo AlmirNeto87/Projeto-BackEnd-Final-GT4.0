@@ -22,18 +22,23 @@ class CategoryController {
     };
 
     // LISTAR TODOS OS USUÁRIOS
+   
+    // LISTAR CATEGORIAS
     async listar(req, res) {
         try {
-            const categorys = await categoryService.listar();
+
+            const categorys = await categoryService.listar(req.query);
 
             return res.status(200).json(categorys);
 
         } catch (error) {
-            return res.status(500).json({
+
+            return res.status(error.statusCode || 500).json({
                 error: error.message
             });
         }
     };
+
 
     // BUSCAR USUÁRIO POR ID
     async listarPorId(req, res) {
